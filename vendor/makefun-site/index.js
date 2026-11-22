@@ -229,7 +229,10 @@ function layouts(b) {
   const ctx = { templates: b.templates, escape: escapeHtml };
   const render = (name, vars) => {
     const nodes = b.templates.get(name);
-    return nodes === undefined ? null : renderNodes(nodes, { vars: { site, tags: allTags, recent, ...vars }, parent: null }, ctx, 0);
+    if (nodes === undefined) return null;
+    const out = [];
+    renderNodes(nodes, { vars: { site, tags: allTags, recent, ...vars }, parent: null }, ctx, 0, out);
+    return out.join('');
   };
   for (const s of b.sources) b.output[`${s.outDir}/index.html`] = render(s.layout, { page: pageOf(s) });
   const per = b.input.site.per_page;

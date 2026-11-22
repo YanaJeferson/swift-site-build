@@ -144,8 +144,7 @@ function truthy(v) {
  * `nodes` rendered in `scope` ({ vars, parent }). `ctx` holds the parsed templates (`templates`, a Map of name to
  * nodes, a template that did not parse absent), the HTML escape and the include depth.
  */
-export function renderNodes(nodes, scope, ctx, depth) {
-  const out = [];
+export function renderNodes(nodes, scope, ctx, depth, out) {
   for (const n of nodes) {
     switch (n.kind) {
       case 'text':
@@ -160,24 +159,31 @@ export function renderNodes(nodes, scope, ctx, depth) {
       case 'if': {
         const v = truthy(lookup(scope, n.path));
         const branch = v !== n.not ? n.then : n.else;
-        if (branch !== null) out.push(renderNodes(branch, scope, ctx, depth));
+        if (branch !== null) renderNodes(branch, scope, ctx, depth, out);
         break;
       }
       case 'for': {
         const xs = lookup(scope, n.path);
         if (!Array.isArray(xs)) break;
+        const vars = {};
+        vars[n.name] = undefined;
+        const loop = { index: 0, first: true, last: false, length: xs.length };
+        vars.loop = loop;
+        const child = { vars, parent: scope };
         for (let k = 0; k < xs.length; k++) {
-          const vars = { [n.name]: xs[k], loop: { index: k + 1, first: k === 0, last: k === xs.length - 1, length: xs.length } };
-          out.push(renderNodes(n.body, { vars, parent: scope }, ctx, depth));
+          vars[n.name] = xs[k];
+          loop.index = k + 1;
+          loop.first = k === 0;
+          loop.last = k === xs.length - 1;
+          renderNodes(n.body, child, ctx, depth, out);
         }
         break;
       }
       case 'include': {
         const t = ctx.templates.get(n.name);
-        if (t !== undefined && depth < INCLUDE_DEPTH) out.push(renderNodes(t, scope, ctx, depth + 1));
+        if (t !== undefined && depth < INCLUDE_DEPTH) renderNodes(t, scope, ctx, depth + 1, out);
         break;
       }
     }
   }
-  return out.join('');
 }
